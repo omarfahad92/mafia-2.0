@@ -10,7 +10,7 @@
 <body>
 
 <!-- ============================================================================
-     ICON SPRITE — premium line-art glyphs, no emoji anywhere in this app
+     ICON SPRITE
      ============================================================================ -->
 <svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
 <defs>
@@ -44,6 +44,10 @@
   <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 3v18"/><path d="M6 4h11l-2.5 4L17 12H6"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 12.5 9.5 18 20 6"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5c2 0 5 .8 8 2 3-1.2 6-2 8-2v14c-2 0-5 .8-8 2-3-1.2-6-2-8-2Z"/><path d="M12 7v14"/></symbol>
+  <symbol id="i-exit" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></symbol>
 </defs>
 </svg>
 
@@ -60,11 +64,11 @@
 
   <main id="views">
 
-    <!-- ======================= VIEW 1 — GATEWAY (unified) ======================= -->
+    <!-- ======================= VIEW 1 — GATEWAY (dual desk) ======================= -->
     <div data-view="chooser" class="view active">
-      <div class="gateway-card corner-frame">
+      <div class="gateway-desk">
 
-        <div class="gateway-half host-half">
+        <div class="gateway-card host-card corner-frame">
           <h2 class="gateway-heading"><svg class="icon"><use href="#i-crown"></use></svg> الهوست — أدر اللعبة</h2>
           <p class="gateway-sub">أنشئ غرفة جديدة وتحكم بكل تفاصيل اللعبة، أو ارجع لغرفة سابقة إذا عندك جلسة محفوظة.</p>
           <button id="btnHostCreate" class="btn btn-primary">
@@ -78,9 +82,9 @@
           </div>
         </div>
 
-        <div class="gateway-divider"><span class="gateway-divider-word">أو</span></div>
+        <div class="gateway-vdivider"><span class="gateway-vdivider-word">أو</span></div>
 
-        <div class="gateway-half join-half">
+        <div class="gateway-card join-card corner-frame">
           <h2 class="gateway-heading"><svg class="icon"><use href="#i-mask"></use></svg> لاعب — انضم للعائلة</h2>
           <p class="gateway-sub">اكتب كود الغرفة الذي أعطاك إياه الهوست، ثم اسمك، وانضم للعبة.</p>
           <div class="field-group">
@@ -103,19 +107,30 @@
           </div>
         </div>
 
-        <p class="gateway-error" id="gatewayError" hidden>
-          <svg class="icon"><use href="#i-alert"></use></svg> <span id="gatewayErrorText"></span>
-        </p>
       </div>
+      <p class="gateway-error" id="gatewayError" hidden>
+        <svg class="icon"><use href="#i-alert"></use></svg> <span id="gatewayErrorText"></span>
+      </p>
     </div>
 
     <!-- ======================= VIEW 2 — HOST DESK ======================= -->
     <div data-view="host" class="view">
       <div class="host-topbar">
-        <div class="room-code-chip"><svg class="icon"><use href="#i-crown"></use></svg> كود الغرفة: <span id="hostRoomCode">----</span></div>
-        <button id="btnHostReset" class="btn btn-ghost-danger">
-          <svg class="icon"><use href="#i-refresh"></use></svg> إعادة تعيين الكل
-        </button>
+        <div class="host-topbar-left">
+          <div class="room-code-chip"><svg class="icon"><use href="#i-crown"></use></svg> كود الغرفة: <span id="hostRoomCode">----</span></div>
+          <button id="btnLockToggle" class="lock-toggle" type="button">
+            <svg class="icon" id="lockToggleIcon"><use href="#i-unlock"></use></svg>
+            <span id="lockToggleLabel">الغرفة مفتوحة</span>
+          </button>
+        </div>
+        <div class="host-topbar-left">
+          <button id="btnHostReset" class="btn btn-ghost-danger">
+            <svg class="icon"><use href="#i-refresh"></use></svg> إعادة تعيين الكل
+          </button>
+          <button id="btnHostLogout" class="btn btn-ghost-danger">
+            <svg class="icon"><use href="#i-exit"></use></svg> تسجيل الخروج
+          </button>
+        </div>
       </div>
 
       <div class="host-grid">
@@ -133,48 +148,62 @@
           </div>
         </aside>
 
-        <!-- CENTER: clock, phase, chats -->
-        <section class="desk-col center-col">
-          <div class="pocketwatch-wrap">
-            <svg class="pocketwatch" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="100" cy="100" r="92" fill="none" stroke="#6f5527" stroke-width="2" opacity="0.5"/>
-              <circle class="pocketwatch-ring" cx="100" cy="100" r="80" fill="none" stroke="#c8a04a" stroke-width="3"
-                stroke-dasharray="502" stroke-dashoffset="0" transform="rotate(-90 100 100)" id="hostTimerRingProgress" stroke-linecap="round"/>
-              <g stroke="#c8a04a" stroke-width="1.6" opacity="0.55">
-                <line x1="100" y1="12" x2="100" y2="24"/>
-                <line x1="100" y1="176" x2="100" y2="188"/>
-                <line x1="12" y1="100" x2="24" y2="100"/>
-                <line x1="176" y1="100" x2="188" y2="100"/>
-              </g>
-              <circle cx="100" cy="100" r="3.5" fill="#f2d488"/>
-            </svg>
-            <div class="pocketwatch-face" id="hostTimerFace"><span id="hostClock">00:00</span></div>
-          </div>
-          <div class="timer-controls">
-            <input id="hostTimerSeconds" type="number" value="60" min="5" max="900" />
-            <button id="btnHostTimerStart" class="btn btn-secondary"><svg class="icon"><use href="#i-play"></use></svg> ابدأ</button>
-            <button id="btnHostTimerStop" class="btn btn-secondary"><svg class="icon"><use href="#i-pause"></use></svg> إيقاف</button>
-          </div>
+        <!-- CENTER: the family rulebook -->
+        <section class="rulebook-panel" id="hostRulebookPanel"></section>
 
-          <div class="phase-indicator" id="hostPhaseIndicator" data-phase="lobby">
-            <svg class="icon" id="hostPhaseIcon"><use href="#i-moon"></use></svg>
-            <span id="hostPhaseLabel">اللوبي</span> — راوند <span id="hostRoundNum">1</span>
-          </div>
-
-          <div class="phase-actions">
-            <button id="btnHostDistribute" class="btn btn-primary"><svg class="icon"><use href="#i-cards"></use></svg> وزّع الرولات</button>
-            <button id="btnHostGoNight" class="btn btn-secondary"><svg class="icon"><use href="#i-moon"></use></svg> اذهب لليل</button>
-            <button id="btnHostGoDay" class="btn btn-secondary"><svg class="icon"><use href="#i-sun"></use></svg> اذهب للنهار</button>
+        <!-- RIGHT: clock header + settings -->
+        <aside class="desk-col settings-col">
+          <div class="clock-header">
+            <div class="pocketwatch-wrap">
+              <svg class="pocketwatch" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="100" cy="100" r="92" fill="none" stroke="#6d5730" stroke-width="2" opacity="0.4"/>
+                <circle class="pocketwatch-ring" cx="100" cy="100" r="80" fill="none" stroke="#b8905a" stroke-width="3"
+                  stroke-dasharray="502" stroke-dashoffset="0" transform="rotate(-90 100 100)" id="hostTimerRingProgress" stroke-linecap="round"/>
+                <g stroke="#b8905a" stroke-width="1.4" opacity="0.45">
+                  <line x1="100" y1="14" x2="100" y2="24"/>
+                  <line x1="100" y1="176" x2="100" y2="186"/>
+                  <line x1="14" y1="100" x2="24" y2="100"/>
+                  <line x1="176" y1="100" x2="186" y2="100"/>
+                </g>
+                <circle cx="100" cy="100" r="3" fill="#d9b878"/>
+              </svg>
+              <div class="pocketwatch-face" id="hostTimerFace"><span id="hostClock">00:00</span></div>
+            </div>
+            <div class="timer-controls">
+              <input id="hostTimerSeconds" type="number" value="60" min="5" max="900" />
+              <button id="btnHostTimerStart" class="btn btn-secondary"><svg class="icon"><use href="#i-play"></use></svg></button>
+              <button id="btnHostTimerStop" class="btn btn-secondary"><svg class="icon"><use href="#i-pause"></use></svg></button>
+            </div>
+            <div class="phase-indicator" id="hostPhaseIndicator" data-phase="lobby">
+              <svg class="icon" id="hostPhaseIcon"><use href="#i-moon"></use></svg>
+              <span id="hostPhaseLabel">اللوبي</span> — راوند <span id="hostRoundNum">1</span>
+            </div>
+            <div class="phase-actions">
+              <button id="btnHostDistribute" class="btn btn-primary"><svg class="icon"><use href="#i-cards"></use></svg> وزّع الرولات</button>
+              <button id="btnHostGoNight" class="btn btn-secondary"><svg class="icon"><use href="#i-moon"></use></svg> اذهب لليل</button>
+              <button id="btnHostGoDay" class="btn btn-secondary"><svg class="icon"><use href="#i-sun"></use></svg> اذهب للنهار</button>
+            </div>
           </div>
 
           <div class="voting-host-box" id="hostVotingBox" hidden>
             <h4><svg class="icon"><use href="#i-gavel"></use></svg> التصويت جارٍ</h4>
             <div id="hostVoteTallyArea"></div>
             <div class="voting-host-actions">
-              <button id="btnHostEndVoting" class="btn btn-secondary"><svg class="icon"><use href="#i-check"></use></svg> إنهاء التصويت</button>
-              <button id="btnHostCancelVoting" class="btn btn-secondary"><svg class="icon"><use href="#i-close"></use></svg> إلغاء التصويت</button>
+              <button id="btnHostEndVoting" class="btn btn-secondary"><svg class="icon"><use href="#i-check"></use></svg> إنهاء</button>
+              <button id="btnHostCancelVoting" class="btn btn-secondary"><svg class="icon"><use href="#i-close"></use></svg> إلغاء</button>
             </div>
           </div>
+
+          <h2 class="col-title"><span class="col-title-label"><svg class="icon"><use href="#i-cards"></use></svg> توزيع الرولات</span></h2>
+          <div class="role-rows" id="hostRolePoolRows"></div>
+          <h2 class="col-title"><span class="col-title-label"><svg class="icon"><use href="#i-crosshair"></use></svg> حدود القدرات</span></h2>
+          <div class="limit-rows" id="hostLimitRows"></div>
+          <div class="toggle-row">
+            <label style="display:flex;align-items:center;gap:9px;"><input type="checkbox" id="hostToggleVoteReveal"/> <svg class="icon"><use href="#i-eye"></use></svg> إظهار نتائج التصويت مباشرة</label>
+          </div>
+          <button id="btnHostRevealAll" class="btn btn-secondary" style="width:100%;margin-bottom:12px;">
+            <svg class="icon"><use href="#i-eye-off"></use></svg> كشف / إخفاء كل الأدوار
+          </button>
 
           <div class="glass-card collapsible" data-card="publicChat">
             <button class="card-header" type="button"><span class="card-header-label"><svg class="icon"><use href="#i-envelope"></use></svg> الشات العام</span><span class="chevron">▾</span></button>
@@ -190,7 +219,7 @@
           <div class="glass-card collapsible mafia-card" data-card="mafiaChat">
             <button class="card-header" type="button"><span class="card-header-label"><svg class="icon"><use href="#i-lock"></use></svg> شات المافيا السري</span><span class="chevron">▾</span></button>
             <div class="card-body">
-              <div id="hostMafiaMembers" style="margin-bottom:9px;font-size:0.78rem;color:var(--ink-dim);"></div>
+              <div id="hostMafiaMembers" style="margin-bottom:9px;font-size:0.76rem;color:var(--ink-dim);"></div>
               <div id="hostMafiaChatBody"></div>
             </div>
           </div>
@@ -199,20 +228,6 @@
             <button class="card-header" type="button"><span class="card-header-label"><svg class="icon"><use href="#i-scroll"></use></svg> سجل الأحداث</span><span class="chevron">▾</span></button>
             <div class="card-body"><div id="hostLogsBody"></div></div>
           </div>
-        </section>
-
-        <!-- RIGHT: roles + limits -->
-        <aside class="desk-col settings-col">
-          <h2 class="col-title"><span class="col-title-label"><svg class="icon"><use href="#i-cards"></use></svg> توزيع الرولات</span></h2>
-          <div class="role-rows" id="hostRolePoolRows"></div>
-          <h2 class="col-title"><span class="col-title-label"><svg class="icon"><use href="#i-crosshair"></use></svg> حدود القدرات</span></h2>
-          <div class="limit-rows" id="hostLimitRows"></div>
-          <div class="toggle-row">
-            <label style="display:flex;align-items:center;gap:9px;"><input type="checkbox" id="hostToggleVoteReveal"/> <svg class="icon"><use href="#i-eye"></use></svg> إظهار نتائج التصويت مباشرة</label>
-          </div>
-          <button id="btnHostRevealAll" class="btn btn-secondary" style="width:100%;margin-bottom:10px;">
-            <svg class="icon"><use href="#i-eye-off"></use></svg> كشف / إخفاء كل الأدوار
-          </button>
         </aside>
 
       </div>
@@ -223,6 +238,7 @@
       <div class="player-topbar">
         <div class="pw-mini" id="playerTimerFace"><svg class="icon"><use href="#i-crosshair"></use></svg> <span id="playerClock">00:00</span></div>
         <div class="phase-pill" id="playerPhaseIndicator" data-phase="lobby"><svg class="icon" id="playerPhaseIcon"><use href="#i-moon"></use></svg> <span id="playerPhaseLabel">اللوبي</span></div>
+        <button id="btnPlayerLogout" class="btn btn-ghost-danger"><svg class="icon"><use href="#i-exit"></use></svg> خروج</button>
       </div>
 
       <div class="player-players-strip" id="playerPlayersStrip"></div>
@@ -278,6 +294,9 @@
   </main>
 </div>
 
+<!-- Floating rulebook button — player view only -->
+<button class="rulebook-fab" id="btnOpenRulebook" title="كتاب قوانين العائلة" hidden><svg class="icon"><use href="#i-book"></use></svg></button>
+
 <!-- Modals -->
 <div class="modal-overlay" id="modalNightSummary" hidden>
   <div class="modal-box">
@@ -300,6 +319,14 @@
     <h2 id="modalGameOverTitle"><svg class="icon"><use href="#i-flag"></use></svg> انتهت اللعبة</h2>
     <div class="modal-lines" id="modalGameOverLines"></div>
     <button class="btn btn-primary modal-close" data-close="modalGameOver">إغلاق</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalRulebook" hidden>
+  <div class="modal-box rulebook-modal">
+    <h2><svg class="icon"><use href="#i-book"></use></svg> كتاب قوانين العائلة</h2>
+    <div class="modal-lines" id="modalRulebookBody" style="max-height:60vh;"></div>
+    <button class="btn btn-primary modal-close" data-close="modalRulebook">إغلاق الكتاب</button>
   </div>
 </div>
 
@@ -332,6 +359,11 @@
   };
   function roleMeta(role){ return ROLE_META[role] || { icon: 'i-mask', team: 'citizens', desc: '' }; }
 
+  const AVATAR_ICON = {
+    'العرّاب': 'i-crown', 'المنفّذ': 'i-dagger', 'المستشار': 'i-mask',
+    'القناص': 'i-crosshair', 'الحارس': 'i-shield', 'المهرّب': 'i-joker'
+  };
+
   const ROLE_POOL_KEYS = ['مافيا', 'دكتور', 'شايب', 'جاسوس', 'هنتر', 'مجنون'];
   const LIMIT_KEYS = [
     { key: 'killLimit',    label: 'حد قتلات المافيا',        icon: 'i-dagger' },
@@ -344,12 +376,47 @@
 
   const PHASE_LABEL = { lobby: 'اللوبي', night: 'الليل', day: 'النهار' };
 
+  const RULEBOOK_HTML = buildRulebookHtml();
+
+  function buildRulebookHtml(){
+    const roleRows = ROLE_POOL_KEYS.concat(['مواطن']).map(r => {
+      const m = roleMeta(r);
+      return '<div class="rulebook-role-row">' + icon(m.icon) + '<div><b>' + r + '</b><span>' + m.desc + '</span></div></div>';
+    }).join('');
+    return (
+      '<div class="rulebook-title">كتاب قوانين العائلة</div>' +
+      '<p class="rulebook-subtitle">تُقرأ هذي الصفحات بصوت خافت، ولا تُروى أسرارها لأحد خارج العائلة</p>' +
+      '<div class="rulebook-columns">' +
+        '<div>' +
+          '<div class="rulebook-section">' +
+            '<h4>' + icon('i-moon') + ' الليل</h4>' +
+            '<p>تنام العائلة على أعينٍ مفتوحة. أصحاب القدرات الخاصة يتحركون بصمت: المافيا تختار ضحية، الدكتور يحمي، الشايب يسأل، الجاسوس يتجسس، الهنتر والمجنون يخططون بحذر.</p>' +
+          '</div>' +
+          '<div class="rulebook-section">' +
+            '<h4>' + icon('i-sun') + ' النهار</h4>' +
+            '<p>تُكشف نتائج الليلة الماضية، ثم يتناقش الجميع علنًا لكشف الخونة قبل أن يبدأ التصويت.</p>' +
+          '</div>' +
+          '<div class="rulebook-section">' +
+            '<h4>' + icon('i-gavel') + ' التصويت' +'</h4>' +
+            '<p>كل لاعب حي يصوّت لطرد شخص واحد أو التخطي. صاحب الأصوات الأكثر يُطرد من العائلة فورًا وتُكشف هويته.</p>' +
+          '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="rulebook-section">' +
+            '<h4>' + icon('i-cards') + ' الأدوار</h4>' +
+            roleRows +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
   /* ==========================================================================
      Socket
      ========================================================================== */
   const socket = io();
 
-  let mode = null; // 'host' | 'player' | null
+  let mode = null;
   let lastHostState = null;
   let lastPlayerState = null;
   let localRolePool = null;
@@ -360,7 +427,6 @@
   let roleCardRevealed = false;
   let lastSelfRole = null;
 
-  // Local timer interpolation state (fixes choppy / stalled clocks)
   let hostTimerState = { seconds: 0, total: 60, running: false, endTs: null };
   let playerTimerState = { seconds: 0, total: 60, running: false, endTs: null };
 
@@ -393,9 +459,7 @@
   });
 
   document.querySelectorAll('.glass-card .card-header').forEach(header => {
-    header.addEventListener('click', () => {
-      header.closest('.glass-card').classList.toggle('collapsed');
-    });
+    header.addEventListener('click', () => header.closest('.glass-card').classList.toggle('collapsed'));
   });
 
   function switchView(name){
@@ -403,6 +467,7 @@
     const target = document.querySelector('div[data-view="' + name + '"]');
     if (target) target.classList.add('active');
     mode = name === 'host' ? 'host' : (name === 'player' ? 'player' : null);
+    $('btnOpenRulebook').hidden = mode !== 'player';
   }
 
   function gatewayError(msg){
@@ -412,8 +477,18 @@
     setTimeout(() => { e.hidden = true; }, 4500);
   }
 
+  function clearHostSession(){ localStorage.removeItem(LS.hostToken); localStorage.removeItem(LS.hostRoomCode); }
+  function clearPlayerSession(){ localStorage.removeItem(LS.playerId); localStorage.removeItem(LS.playerToken); localStorage.removeItem(LS.playerRoomCode); localStorage.removeItem(LS.playerName); }
+
   /* ==========================================================================
-     Local timer ticking — driven by absolute endTs so the display never stalls
+     Rulebook rendering (host center panel + player modal)
+     ========================================================================== */
+  $('hostRulebookPanel').innerHTML = RULEBOOK_HTML;
+  $('modalRulebookBody').innerHTML = RULEBOOK_HTML;
+  $('btnOpenRulebook').addEventListener('click', () => openModal('modalRulebook'));
+
+  /* ==========================================================================
+     Local timer ticking — driven by absolute endTs
      ========================================================================== */
   const HOST_RING_CIRCUMFERENCE = 2 * Math.PI * 80;
   function tickClocks(){
@@ -423,9 +498,7 @@
   function renderClock(state, textNode, faceNode, ringNode){
     if (!textNode) return;
     let remaining = state.seconds;
-    if (state.running && state.endTs) {
-      remaining = Math.max(0, Math.round((state.endTs - Date.now()) / 1000));
-    }
+    if (state.running && state.endTs) remaining = Math.max(0, Math.round((state.endTs - Date.now()) / 1000));
     textNode.textContent = fmtTime(remaining);
     if (faceNode) faceNode.classList.toggle('low-time', state.running && remaining <= 10 && remaining > 0);
     if (ringNode && state.total) {
@@ -437,20 +510,20 @@
   setInterval(tickClocks, 200);
 
   /* ==========================================================================
-     Gateway — unified host/join, no tab-hiding needed
+     Gateway
      ========================================================================== */
   $('btnHostCreate').addEventListener('click', () => {
     socket.emit('host:create', {}, (res) => {
-      if (!res || !res.ok) { gatewayError('تعذّر إنشاء الغرفة، جرّب مرة ثانية.'); return; }
+      if (!res || !res.ok) { gatewayError((res && res.message) || 'تعذّر إنشاء الغرفة، جرّب مرة ثانية.'); return; }
       localStorage.setItem(LS.hostToken, res.hostToken);
       localStorage.setItem(LS.hostRoomCode, res.roomCode);
       switchView('host');
     });
   });
 
-  $('btnHostRejoin').addEventListener('click', attemptHostRejoin);
+  $('btnHostRejoin').addEventListener('click', () => attemptHostRejoin(true));
 
-  function attemptHostRejoin(){
+  function attemptHostRejoin(manual){
     const roomCode = localStorage.getItem(LS.hostRoomCode);
     const hostToken = localStorage.getItem(LS.hostToken);
     if (!roomCode || !hostToken) return;
@@ -458,9 +531,9 @@
       if (res && res.ok) {
         switchView('host');
       } else {
-        localStorage.removeItem(LS.hostToken);
-        localStorage.removeItem(LS.hostRoomCode);
+        clearHostSession();
         $('hostRejoinNote').hidden = true;
+        if (manual) gatewayError((res && res.message) || 'تعذّر الرجوع للغرفة.');
       }
     });
   }
@@ -476,9 +549,11 @@
           const preview = $('lobbyPreview');
           if (res && res.ok) {
             const names = res.players.map(p => p.name).join('، ');
-            preview.innerHTML = res.players.length
+            let html = res.players.length
               ? (icon('i-users') + ' بالغرفة الآن: <b>' + escapeHtml(names) + '</b>')
               : (icon('i-users') + ' الغرفة فاضية للحين، كن أول من ينضم.');
+            if (res.locked) html += '<br/>' + icon('i-lock') + ' تنبيه: هذي الغرفة مقفلة أمام الأعضاء الجدد.';
+            preview.innerHTML = html;
             preview.hidden = false;
           } else {
             preview.innerHTML = icon('i-alert') + ' ما فيه غرفة بهذا الكود.';
@@ -506,9 +581,9 @@
     });
   });
 
-  $('btnPlayerRejoin').addEventListener('click', attemptPlayerRejoin);
+  $('btnPlayerRejoin').addEventListener('click', () => attemptPlayerRejoin(true));
 
-  function attemptPlayerRejoin(){
+  function attemptPlayerRejoin(manual){
     const roomCode = localStorage.getItem(LS.playerRoomCode);
     const playerId = localStorage.getItem(LS.playerId);
     const playerToken = localStorage.getItem(LS.playerToken);
@@ -517,31 +592,35 @@
       if (res && res.ok) {
         switchView('player');
       } else {
-        localStorage.removeItem(LS.playerId);
-        localStorage.removeItem(LS.playerToken);
-        localStorage.removeItem(LS.playerRoomCode);
+        clearPlayerSession();
         $('playerRejoinNote').hidden = true;
+        if (manual) gatewayError((res && res.message) || 'تعذّر الرجوع لمقعدك.');
       }
     });
   }
 
-  window.addEventListener('DOMContentLoaded', () => {
+  // Auto-reconnect: tried on first load AND on every successful socket
+  // (re)connection, so a dropped network no longer freezes the session or
+  // throws stale "مو مسموح" errors after Socket.io silently reconnects.
+  function tryAutoReconnect(){
     if (localStorage.getItem(LS.hostToken) && localStorage.getItem(LS.hostRoomCode)) {
       $('hostRejoinNote').hidden = false;
-      attemptHostRejoin();
+      attemptHostRejoin(false);
     }
     if (localStorage.getItem(LS.playerId) && localStorage.getItem(LS.playerToken) && localStorage.getItem(LS.playerRoomCode)) {
       $('playerRejoinNote').hidden = false;
-      attemptPlayerRejoin();
+      attemptPlayerRejoin(false);
     }
-  });
+  }
+  window.addEventListener('DOMContentLoaded', tryAutoReconnect);
+  socket.on('connect', tryAutoReconnect);
 
   /* ==========================================================================
      Socket listeners
      ========================================================================== */
   socket.on('state', (data) => {
     if (!data) return;
-    if (data.type === 'lobbyInfo') return; // handled via lobby:watch callback preview
+    if (data.type === 'lobbyInfo') return;
     if (data.type === 'state') {
       lastPlayerState = data;
       playerTimerState = data.timer;
@@ -569,11 +648,24 @@
     }
   });
 
+  $('btnHostLogout').addEventListener('click', () => {
+    if (!confirm('تسجيل الخروج؟ بترجع لبوابة الدخول وتقدر ترجع لغرفتك لاحقًا.')) return;
+    socket.emit('host:logout', {}, () => {
+      clearHostSession();
+      switchView('chooser');
+    });
+  });
+
+  $('btnLockToggle').addEventListener('click', () => {
+    socket.emit('host:toggleRoomLock', {}, () => {});
+  });
+
   $('btnHostAddPlayer').addEventListener('click', () => {
     const name = $('hostAddPlayerName').value.trim();
     if (!name) return;
     socket.emit('host:addPlayer', { name }, (res) => {
       if (res && res.ok) $('hostAddPlayerName').value = '';
+      else if (res && res.message) showToast(res.message);
     });
   });
   $('hostAddPlayerName').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btnHostAddPlayer').click(); });
@@ -603,7 +695,7 @@
   function hostChatSend(){
     const text = $('hostChatInput').value.trim();
     if (!text) return;
-    socket.emit('host:chatSend', { text }, () => { $('hostChatInput').value = ''; });
+    socket.emit('host:chatSend', { text }, (res) => { if (res && res.ok) $('hostChatInput').value = ''; else if (res && res.message) showToast(res.message); });
   }
 
   /* ==========================================================================
@@ -613,6 +705,10 @@
     $('hostRoomCode').textContent = data.roomCode || '----';
     $('hostRemainCount').textContent = '(' + data.remain + ' أحياء)';
     $('hostRoundNum').textContent = data.round;
+
+    $('btnLockToggle').classList.toggle('locked', data.roomLocked);
+    $('lockToggleIcon').innerHTML = '<use href="#' + (data.roomLocked ? 'i-lock' : 'i-unlock') + '"></use>';
+    $('lockToggleLabel').textContent = data.roomLocked ? 'الغرفة مقفلة' : 'الغرفة مفتوحة';
 
     $('hostPhaseIndicator').setAttribute('data-phase', data.phase);
     $('hostPhaseLabel').textContent = PHASE_LABEL[data.phase] || data.phase;
@@ -625,12 +721,8 @@
 
     renderHostPlayers(data);
 
-    if (data.voting && data.voting.active) {
-      showEl($('hostVotingBox'));
-      renderHostVoteTally(data);
-    } else {
-      hideEl($('hostVotingBox'));
-    }
+    if (data.voting && data.voting.active) { showEl($('hostVotingBox')); renderHostVoteTally(data); }
+    else hideEl($('hostVotingBox'));
 
     if (!localRolePool) { localRolePool = { ...data.rolePool }; buildRolePoolRows(); }
     if (!localLimits) { localLimits = { ...data.limits }; buildLimitRows(); }
@@ -641,7 +733,7 @@
     $('hostToggleVoteReveal').checked = !!data.voting.voteRevealEnabled;
 
     renderChatList($('hostPublicChatBody'), data.chat);
-    renderChatList($('hostMafiaChatBody'), data.mafiaChat.messages, true);
+    renderChatList($('hostMafiaChatBody'), data.mafiaChat.messages);
     $('hostMafiaMembers').innerHTML = data.mafiaChat.members.length
       ? (icon('i-users') + ' الأعضاء: ' + escapeHtml(data.mafiaChat.members.join('، ')))
       : 'ما فيه أعضاء بالشات السري بعد';
@@ -668,6 +760,16 @@
       head.appendChild(nameTag);
       head.appendChild(dot);
       row.appendChild(head);
+
+      const avatarBox = el('div', 'avatar-selector');
+      avatarBox.innerHTML =
+        '<button data-dir="-1">' + icon('i-chevron-right') + '</button>' +
+        '<span class="avatar-name">' + icon(AVATAR_ICON[p.avatar] || 'i-mask') + ' ' + escapeHtml(p.avatar || '') + '</span>' +
+        '<button data-dir="1">' + icon('i-chevron-left') + '</button>';
+      avatarBox.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => socket.emit('host:cycleAvatar', { playerId: p.id, dir: parseInt(btn.dataset.dir, 10) }, () => {}));
+      });
+      row.appendChild(avatarBox);
 
       const actions = el('div', 'player-row-actions');
       const marks = [
@@ -705,9 +807,8 @@
     const area = $('hostVoteTallyArea');
     area.innerHTML = '';
     const info = el('div', '', 'صوّت ' + Object.keys(data.voting.votes).length + ' من ' + data.players.filter(p=>!p.dead).length);
-    info.style.fontSize = '0.8rem';
+    info.style.fontSize = '0.78rem';
     info.style.color = 'var(--ink-dim)';
-    info.style.marginBottom = '6px';
     area.appendChild(info);
   }
 
@@ -774,7 +875,7 @@
   }
 
   /* ==========================================================================
-     PLAYER — rendering
+     PLAYER — actions & rendering
      ========================================================================== */
   $('playerRoleCard').addEventListener('click', () => {
     if (!lastPlayerState || !lastPlayerState.self || !lastPlayerState.self.role) return;
@@ -782,12 +883,20 @@
     $('playerRoleCard').classList.toggle('revealed', roleCardRevealed);
   });
 
+  $('btnPlayerLogout').addEventListener('click', () => {
+    if (!confirm('تسجيل الخروج؟ بترجع لبوابة الدخول وتقدر ترجع لمقعدك لاحقًا.')) return;
+    socket.emit('player:logout', {}, () => {
+      clearPlayerSession();
+      switchView('chooser');
+    });
+  });
+
   $('btnPlayerChatSend').addEventListener('click', playerChatSend);
   $('playerChatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') playerChatSend(); });
   function playerChatSend(){
     const text = $('playerChatInput').value.trim();
     if (!text) return;
-    socket.emit('player:chatSend', { text }, () => { $('playerChatInput').value = ''; });
+    socket.emit('player:chatSend', { text }, (res) => { if (res && res.ok) $('playerChatInput').value = ''; else if (res && res.message) showToast(res.message); });
   }
 
   $('btnPlayerMafiaChatSend').addEventListener('click', playerMafiaChatSend);
@@ -795,7 +904,7 @@
   function playerMafiaChatSend(){
     const text = $('playerMafiaChatInput').value.trim();
     if (!text) return;
-    socket.emit('player:mafiaChatSend', { text }, () => { $('playerMafiaChatInput').value = ''; });
+    socket.emit('player:mafiaChatSend', { text }, (res) => { if (res && res.ok) $('playerMafiaChatInput').value = ''; else if (res && res.message) showToast(res.message); });
   }
 
   function renderPlayer(data){
@@ -807,7 +916,7 @@
     strip.innerHTML = '';
     data.players.forEach(p => {
       const chip = el('span', 'strip-chip' + (p.dead ? ' dead' : '') + (data.self && p.id === data.self.id ? ' online-me' : ''),
-        escapeHtml(p.name) + (p.revealedRole ? ' (' + escapeHtml(p.revealedRole) + ')' : (p.knownRole ? ' (' + escapeHtml(p.knownRole) + ')' : '')));
+        icon(AVATAR_ICON[p.avatar] || 'i-mask') + escapeHtml(p.name) + (p.revealedRole ? ' (' + escapeHtml(p.revealedRole) + ')' : (p.knownRole ? ' (' + escapeHtml(p.knownRole) + ')' : '')));
       strip.appendChild(chip);
     });
 
@@ -845,7 +954,7 @@
     if (data.mafiaChat && data.mafiaChat.isMember) {
       showEl($('playerMafiaCardWrap'));
       $('playerMafiaCardWrap').classList.toggle('active-glow', data.phase === 'night');
-      renderChatList($('playerMafiaChatBody'), data.mafiaChat.messages, true);
+      renderChatList($('playerMafiaChatBody'), data.mafiaChat.messages);
       $('playerMafiaChatInput').disabled = !!(data.self && data.self.dead);
       $('btnPlayerMafiaChatSend').disabled = !!(data.self && data.self.dead);
     } else {
