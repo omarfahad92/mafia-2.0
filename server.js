@@ -2,6 +2,14 @@
 // server.js — سيرفر لعبة المافيا (Node.js + Express + Socket.io)
 // اللعبة بالكامل تدار من هنا (authoritative state)، والواجهة (index.html)
 // بس تعرض الحالة وترسل أوامر. جاهز للرفع مباشرة على Render.
+//
+// هذي النسخة (v3) تضيف:
+//  - قفل/فتح الغرفة (منع انضمام لاعبين جدد)
+//  - أفاتار / إطارات شخصيات مسبقة لكل لاعب (يقدر الهوست يبدلها)
+//  - تحديد معدل الأحداث (Rate Limiting) لمنع الإغراق (سبام) على الشات/التصويت/القدرات
+//  - تسجيل خروج آمن للهوست واللاعب (host:logout / player:logout)
+//  - جلسات تعيد الاتصال بموثوقية أعلى (يدعمها العميل بإعادة محاولة عند كل اتصال Socket.io ناجح،
+//    مو بس عند تحميل الصفحة، عشان ينحل تجمّد "غير مسموح" بعد انقطاع شبكة مؤقت)
 // ============================================================================
 
 const path = require('path');
@@ -57,6 +65,23 @@ function isSensitiveRole(role) {
 
 const COLORS = ['#e23e4a', '#3fa7d6', '#3fd08a', '#f3c14a', '#b18cff', '#ff8a5c', '#5cd1e0', '#e05cc4', '#8cd15c', '#d15c5c'];
 
+// إطارات/أفاتار شخصيات مسبقة الصنع — هوية ظاهرة لكل لاعب (لا علاقة لها بروله السري)
+const AVATAR_PRESETS = ['العرّاب', 'المنفّذ', 'المستشار', 'القناص', 'الحارس', 'المهرّب'];
+
+// ============================================================================
+// تحديد معدل الأحداث (Rate Limiting) — حماية من إغراق الأحداث (سبام)
+// ============================================================================
+
+function checkRate(socket, key, max, windowMs) {
+  const now = Date.now();
+  socket.data._rl = socket.data._rl || {};
+  const arr = (socket.data._rl[key] || []).filter(t => now - t < windowMs);
+  if (arr.length >= max) return false;
+  arr.push(now);
+  socket.data._rl[key] = arr;
+  return true;
+}
+
 // ============================================================================
 // حالة الغرف (Rooms) — كلها بالذاكرة (in-memory)
 // ============================================================================
@@ -72,10 +97,12 @@ function createRoom() {
     hostSocketId: null,
     hostOnline: false,
 
+    locked: false,
+
     phase: 'lobby', // 'lobby' | 'night' | 'day'
     roundNumber: 1,
 
-    players: [], // {id, token, name, socketId, online, dead, color, role, roleRevealed,
+    players: [], // {id, token, name, socketId, online, dead, color, avatar, role, roleRevealed,
                  //  protected, protectedByCrazyId, markedKill, markedElder, markedSpy, markedHunter, markedCrazy,
                  //  elderKnownRole, spyKnownRole}
 
@@ -111,6 +138,8 @@ function createRoom() {
 
     gameEnded: false,
     gameEndedInfo: null,
+
+    lobbyWatchers: [],
 
     createdAt: Date.now(),
     lastActivity: Date.now()
@@ -151,11 +180,12 @@ function buildStateForPlayer(room, player) {
   return {
     type: 'state',
     roomCode: room.roomCode,
+    roomLocked: room.locked,
     phase: room.phase,
-    self: self ? { id: self.id, name: self.name, role: self.role || null, dead: self.dead } : null,
+    self: self ? { id: self.id, name: self.name, role: self.role || null, dead: self.dead, avatar: self.avatar } : null,
     isMafia, isDoctor, isElder, isSpy, isHunter, isCrazy,
     players: room.players.map(p => ({
-      id: p.id, name: p.name, dead: p.dead, online: !!p.online,
+      id: p.id, name: p.name, dead: p.dead, online: !!p.online, avatar: p.avatar,
       knownRole: (isElder && p.elderKnownRole) || (isSpy && p.spyKnownRole) || null,
       revealedRole: room.allRolesRevealed ? (p.role || null) : null
     })),
@@ -189,7 +219,7 @@ function buildStateForPlayer(room, player) {
     gameOver: room.gameEnded ? room.gameEndedInfo : null,
     voting: (room.votingActive && room.phase === 'day') ? {
       active: true,
-      candidates: [...alive.filter(p => p.id !== self?.id).map(p => ({ id: p.id, name: p.name })), { id: '__skip__', name: '⏭️ تخطي (بدون طرد)' }],
+      candidates: [...alive.filter(p => p.id !== self?.id).map(p => ({ id: p.id, name: p.name })), { id: '__skip__', name: 'تخطي (بدون طرد)' }],
       myVote: self ? (room.votes[self.id] || null) : null,
       totalVoters: alive.length,
       votedCount: Object.keys(room.votes).length,
@@ -197,7 +227,7 @@ function buildStateForPlayer(room, player) {
       tally: room.voteRevealEnabled ? (() => {
         const t = {}; alive.forEach(p => t[p.id] = 0); t['__skip__'] = 0;
         Object.values(room.votes).forEach(v => { if (t[v] !== undefined) t[v]++; });
-        return [...alive.map(p => ({ id: p.id, name: p.name, count: t[p.id] })), { id: '__skip__', name: '⏭️ تخطي', count: t['__skip__'] }];
+        return [...alive.map(p => ({ id: p.id, name: p.name, count: t[p.id] })), { id: '__skip__', name: 'تخطي', count: t['__skip__'] }];
       })() : null
     } : { active: false }
   };
@@ -208,10 +238,11 @@ function buildStateForHost(room) {
   return {
     type: 'hostState',
     roomCode: room.roomCode,
+    roomLocked: room.locked,
     phase: room.phase,
     round: room.roundNumber,
     players: room.players.map(p => ({
-      id: p.id, name: p.name, online: !!p.online, dead: p.dead, role: p.role || null,
+      id: p.id, name: p.name, online: !!p.online, dead: p.dead, role: p.role || null, avatar: p.avatar,
       roleRevealed: p.roleRevealed, protected: !!p.protected, protectedByCrazyId: p.protectedByCrazyId || null,
       markedKill: !!p.markedKill, markedElder: !!p.markedElder, markedSpy: !!p.markedSpy,
       markedHunter: !!p.markedHunter, markedCrazy: !!p.markedCrazy, color: p.color
@@ -234,7 +265,7 @@ function buildStateForHost(room) {
       votes: room.votes,
       voteRevealEnabled: room.voteRevealEnabled
     },
-    timer: room.timer,
+    timer: { seconds: room.timer.seconds, total: room.timer.total, running: room.timer.running, endTs: room.timer.running ? Date.now() + room.timer.seconds * 1000 : null },
     log: room.gameLog.slice(0, 80),
     chat: room.chatMessages.slice(-100),
     remain: alive.length,
@@ -258,9 +289,9 @@ function broadcastLobby(room) {
   const payload = {
     type: 'lobbyInfo',
     phase: room.phase,
+    locked: room.locked,
     players: room.players.map(p => ({ id: p.id, name: p.name, online: !!p.online, dead: !!p.dead }))
   };
-  // كل اللاعبين المتصلين (حتى اللي ما سجلوا بعد ما لهم socket مخصص هنا، نبثها فقط لسوكيتات اللوبي المسجلة بمصفوفة منفصلة)
   (room.lobbyWatchers || []).forEach(sid => {
     if (io.sockets.sockets.get(sid)) io.to(sid).emit('state', payload);
   });
@@ -574,10 +605,10 @@ io.on('connection', (socket) => {
 
   // ---------------- الهوست: إنشاء غرفة جديدة ----------------
   socket.on('host:create', (_data, cb) => {
+    if (!checkRate(socket, 'createRoom', 4, 10000)) { cb && cb({ ok: false, message: '🚫 تمهل قليلاً قبل إنشاء غرفة جديدة' }); return; }
     const room = createRoom();
     room.hostSocketId = socket.id;
     room.hostOnline = true;
-    room.lobbyWatchers = [];
     socket.data.roomCode = room.roomCode;
     socket.data.isHost = true;
     socket.join(room.roomCode);
@@ -585,7 +616,7 @@ io.on('connection', (socket) => {
     broadcastRoom(room);
   });
 
-  // ---------------- الهوست: رجوع بعد تحديث الصفحة ----------------
+  // ---------------- الهوست: رجوع بعد تحديث الصفحة أو انقطاع الاتصال ----------------
   socket.on('host:rejoin', ({ roomCode, hostToken }, cb) => {
     const room = rooms[(roomCode || '').toUpperCase()];
     if (!room || room.hostToken !== hostToken) {
@@ -601,6 +632,21 @@ io.on('connection', (socket) => {
     broadcastRoom(room);
   });
 
+  // ---------------- الهوست: تسجيل خروج آمن ----------------
+  socket.on('host:logout', (_data, cb) => {
+    const roomCode = socket.data.roomCode;
+    const room = rooms[roomCode];
+    if (room && room.hostSocketId === socket.id) {
+      room.hostOnline = false;
+      room.hostSocketId = null;
+      socket.leave(roomCode);
+    }
+    delete socket.data.roomCode;
+    delete socket.data.isHost;
+    cb && cb({ ok: true });
+    if (room) broadcastRoom(room);
+  });
+
   // ---------------- اللاعب: طلب معلومات اللوبي (بانتظار كتابة الاسم) ----------------
   socket.on('lobby:watch', ({ roomCode }, cb) => {
     const room = rooms[(roomCode || '').toUpperCase()];
@@ -612,12 +658,14 @@ io.on('connection', (socket) => {
     cb && cb({
       ok: true,
       phase: room.phase,
+      locked: room.locked,
       players: room.players.map(p => ({ id: p.id, name: p.name, online: !!p.online, dead: !!p.dead }))
     });
   });
 
   // ---------------- اللاعب: تسجيل اسم جديد أو رجوع بنفس الاسم ----------------
   socket.on('player:register', ({ roomCode, name }, cb) => {
+    if (!checkRate(socket, 'register', 6, 10000)) { cb && cb({ ok: false, message: '🚫 تمهل قليلاً وحاول مرة ثانية' }); return; }
     const room = rooms[(roomCode || '').toUpperCase()];
     if (!room) { cb && cb({ ok: false, message: '🚫 ما فيه غرفة بهذا الكود' }); return; }
     const cleanName = (name || '').toString().trim().slice(0, 24);
@@ -636,6 +684,7 @@ io.on('connection', (socket) => {
       return;
     }
 
+    if (room.locked) { cb && cb({ ok: false, message: '🔒 الغرفة مقفلة من الهوست، ما تقدر تنضم الحين.' }); return; }
     if (room.phase !== 'lobby') {
       cb && cb({ ok: false, message: '🚫 اللعبة بدأت بالفعل، انتظر لعبة جديدة عشان تنضم' });
       return;
@@ -649,6 +698,7 @@ io.on('connection', (socket) => {
       online: true,
       dead: false,
       color: COLORS[room.players.length % COLORS.length],
+      avatar: AVATAR_PRESETS[room.players.length % AVATAR_PRESETS.length],
       role: null, roleRevealed: false,
       protected: false, protectedByCrazyId: null,
       markedKill: false, markedElder: false, markedSpy: false, markedHunter: false, markedCrazy: false,
@@ -680,12 +730,28 @@ io.on('connection', (socket) => {
     broadcastRoom(room);
   });
 
+  // ---------------- اللاعب: تسجيل خروج آمن ----------------
+  socket.on('player:logout', (_data, cb) => {
+    const roomCode = socket.data.roomCode;
+    const playerId = socket.data.playerId;
+    const room = rooms[roomCode];
+    if (room && playerId) {
+      const p = room.players.find(pl => pl.id === playerId);
+      if (p) { p.online = false; p.socketId = null; }
+      socket.leave(roomCode);
+    }
+    delete socket.data.roomCode;
+    delete socket.data.playerId;
+    cb && cb({ ok: true });
+    if (room) broadcastRoom(room);
+  });
+
   // ---------------- أوامر الهوست ----------------
   function withHostRoom(handler) {
     return (data, cb) => {
       const roomCode = socket.data.roomCode;
       const room = rooms[roomCode];
-      if (!room || room.hostSocketId !== socket.id) { cb && cb({ ok: false, message: 'مو مسموح' }); return; }
+      if (!room || room.hostSocketId !== socket.id) { cb && cb({ ok: false, message: 'مو مسموح — تأكد إنك متصل كهوست بهذي الغرفة' }); return; }
       handler(room, data || {}, cb);
     };
   }
@@ -699,6 +765,7 @@ io.on('connection', (socket) => {
     room.players.push({
       id: crypto.randomBytes(8).toString('hex'), token: makeToken(), name: cleanName,
       socketId: null, online: false, dead: false, color: COLORS[room.players.length % COLORS.length],
+      avatar: AVATAR_PRESETS[room.players.length % AVATAR_PRESETS.length],
       role: null, roleRevealed: false, protected: false, protectedByCrazyId: null,
       markedKill: false, markedElder: false, markedSpy: false, markedHunter: false, markedCrazy: false,
       elderKnownRole: null, spyKnownRole: null
@@ -715,6 +782,24 @@ io.on('connection', (socket) => {
     logEvent(room, `🗑️ تم حذف اللاعب: ${p.name}`, null);
     broadcastRoom(room);
     cb && cb({ ok: true });
+  }));
+
+  socket.on('host:cycleAvatar', withHostRoom((room, { playerId, dir }, cb) => {
+    const p = room.players.find(pl => pl.id === playerId);
+    if (!p) { cb && cb({ ok: false }); return; }
+    const curIdx = AVATAR_PRESETS.indexOf(p.avatar);
+    const step = dir < 0 ? -1 : 1;
+    const nextIdx = ((curIdx === -1 ? 0 : curIdx) + step + AVATAR_PRESETS.length) % AVATAR_PRESETS.length;
+    p.avatar = AVATAR_PRESETS[nextIdx];
+    broadcastRoom(room);
+    cb && cb({ ok: true, avatar: p.avatar });
+  }));
+
+  socket.on('host:toggleRoomLock', withHostRoom((room, _d, cb) => {
+    room.locked = !room.locked;
+    logEvent(room, room.locked ? '🔒 تم قفل الغرفة أمام اللاعبين الجدد' : '🔓 تم فتح الغرفة للانضمام', null);
+    broadcastRoom(room);
+    cb && cb({ ok: true, locked: room.locked });
   }));
 
   socket.on('host:setRolePool', withHostRoom((room, { rolePool }, cb) => {
@@ -780,6 +865,7 @@ io.on('connection', (socket) => {
   }));
 
   socket.on('host:manualMark', withHostRoom((room, { kind, playerId }, cb) => {
+    if (!checkRate(socket, 'hostMark', 20, 3000)) { cb && cb({ ok: false, message: '🚫 تمهل شوي' }); return; }
     const p = room.players.find(pl => pl.id === playerId);
     if (!p || p.dead) { cb && cb({ ok: false }); return; }
     if (kind === 'kill') p.markedKill = !p.markedKill;
@@ -845,6 +931,7 @@ io.on('connection', (socket) => {
   }));
 
   socket.on('host:chatSend', withHostRoom((room, { text }, cb) => {
+    if (!checkRate(socket, 'chat', 6, 4000)) { cb && cb({ ok: false, message: '🚫 تمهل شوي بالمراسلة' }); return; }
     const clean = (text || '').toString().trim().slice(0, 300);
     if (!clean) return;
     room.chatMessages.push({ sender: 'الهوست', text: clean, time: nowTimeStr(), isHost: true });
@@ -867,6 +954,7 @@ io.on('connection', (socket) => {
   }
 
   socket.on('player:markKill', withPlayerRoom((room, shooter, { targetId }, cb) => {
+    if (!checkRate(socket, 'nightAction', 20, 3000)) { cb && cb({ ok: false, message: '🚫 تمهل شوي' }); return; }
     if (room.phase !== 'night') { cb && cb({ ok: false, message: '🌙 قدرة المافيا تشتغل بس بالليل' }); return; }
     if (shooter.dead || !isMafiaRole(shooter.role)) { cb && cb({ ok: false, message: 'ما تقدر تستهدف' }); return; }
     const target = room.players.find(p => p.id === targetId);
@@ -882,6 +970,7 @@ io.on('connection', (socket) => {
   }));
 
   socket.on('player:markProtect', withPlayerRoom((room, doctor, { targetId }, cb) => {
+    if (!checkRate(socket, 'nightAction', 20, 3000)) { cb && cb({ ok: false, message: '🚫 تمهل شوي' }); return; }
     if (room.phase !== 'night') { cb && cb({ ok: false, message: '🌙 قدرة الدكتور تشتغل بس بالليل' }); return; }
     if (doctor.dead || doctor.role !== 'دكتور') { cb && cb({ ok: false, message: 'ما تقدر تحمي' }); return; }
     const target = room.players.find(p => p.id === targetId);
@@ -899,6 +988,7 @@ io.on('connection', (socket) => {
   }));
 
   socket.on('player:elderPeek', withPlayerRoom((room, elder, { targetId }, cb) => {
+    if (!checkRate(socket, 'nightAction', 20, 3000)) { cb && cb({ ok: false, message: '🚫 تمهل شوي' }); return; }
     if (room.phase !== 'night') { cb && cb({ ok: false, message: '🌙 قدرة الشايب تشتغل بس بالليل' }); return; }
     if (elder.dead || elder.role !== 'شايب') { cb && cb({ ok: false, message: 'ما تقدر تستخدم هذي القدرة' }); return; }
     const target = room.players.find(p => p.id === targetId);
@@ -916,6 +1006,7 @@ io.on('connection', (socket) => {
   }));
 
   socket.on('player:markSpy', withPlayerRoom((room, spy, { targetId }, cb) => {
+    if (!checkRate(socket, 'nightAction', 20, 3000)) { cb && cb({ ok: false, message: '🚫 تمهل شوي' }); return; }
     if (room.phase !== 'night') { cb && cb({ ok: false, message: '🌙 قدرة الجاسوس تشتغل بس بالليل' }); return; }
     if (spy.dead || spy.role !== 'جاسوس') { cb && cb({ ok: false, message: 'ما تقدر تستخدم هذي القدرة' }); return; }
     const target = room.players.find(p => p.id === targetId);
@@ -931,6 +1022,7 @@ io.on('connection', (socket) => {
   }));
 
   socket.on('player:markHunter', withPlayerRoom((room, hunter, { targetId }, cb) => {
+    if (!checkRate(socket, 'nightAction', 20, 3000)) { cb && cb({ ok: false, message: '🚫 تمهل شوي' }); return; }
     if (room.phase !== 'night') { cb && cb({ ok: false, message: '🌙 قدرة الهنتر تشتغل بس بالليل' }); return; }
     if (hunter.dead || hunter.role !== 'هنتر') { cb && cb({ ok: false, message: 'ما تقدر تستخدم هذي القدرة' }); return; }
     const target = room.players.find(p => p.id === targetId);
@@ -945,6 +1037,7 @@ io.on('connection', (socket) => {
   }));
 
   socket.on('player:markCrazy', withPlayerRoom((room, crazy, { targetId }, cb) => {
+    if (!checkRate(socket, 'nightAction', 20, 3000)) { cb && cb({ ok: false, message: '🚫 تمهل شوي' }); return; }
     if (room.phase !== 'night') { cb && cb({ ok: false, message: '🌙 قدرة المجنون تشتغل بس بالليل' }); return; }
     if (crazy.dead || crazy.role !== 'مجنون') { cb && cb({ ok: false, message: 'ما تقدر تستخدم هذي القدرة' }); return; }
     const target = room.players.find(p => p.id === targetId);
@@ -960,6 +1053,7 @@ io.on('connection', (socket) => {
   }));
 
   socket.on('player:markCrazyProtect', withPlayerRoom((room, crazy, { targetId }, cb) => {
+    if (!checkRate(socket, 'nightAction', 20, 3000)) { cb && cb({ ok: false, message: '🚫 تمهل شوي' }); return; }
     if (room.phase !== 'night') { cb && cb({ ok: false, message: '🌙 قدرة المجنون تشتغل بس بالليل' }); return; }
     if (crazy.dead || crazy.role !== 'مجنون') { cb && cb({ ok: false, message: 'ما تقدر تستخدم هذي القدرة' }); return; }
     const target = room.players.find(p => p.id === targetId);
@@ -980,6 +1074,7 @@ io.on('connection', (socket) => {
   }));
 
   socket.on('player:castVote', withPlayerRoom((room, voter, { targetId }, cb) => {
+    if (!checkRate(socket, 'vote', 10, 3000)) { cb && cb({ ok: false, message: '🚫 تمهل شوي بالتصويت' }); return; }
     if (!room.votingActive || room.phase !== 'day' || voter.dead) { cb && cb({ ok: false }); return; }
     if (targetId === '__skip__') {
       room.votes[voter.id] = '__skip__';
@@ -995,6 +1090,7 @@ io.on('connection', (socket) => {
   }));
 
   socket.on('player:chatSend', withPlayerRoom((room, player, { text }, cb) => {
+    if (!checkRate(socket, 'chat', 6, 4000)) { cb && cb({ ok: false, message: '🚫 تمهل شوي بالمراسلة' }); return; }
     if (player.dead) return;
     const clean = (text || '').toString().trim().slice(0, 300);
     if (!clean) return;
@@ -1005,6 +1101,7 @@ io.on('connection', (socket) => {
   }));
 
   socket.on('player:mafiaChatSend', withPlayerRoom((room, player, { text }, cb) => {
+    if (!checkRate(socket, 'chat', 6, 4000)) { cb && cb({ ok: false, message: '🚫 تمهل شوي بالمراسلة' }); return; }
     if (player.dead || !room.mafiaChatMemberIds.includes(player.id)) return;
     const clean = (text || '').toString().trim().slice(0, 300);
     if (!clean) return;
